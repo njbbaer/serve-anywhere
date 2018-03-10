@@ -6,6 +6,7 @@ import sys
 
 from config import config
 
+
 def setup_tunnel(address, username, key_file, local_port, public_port):
     ssh_command = "ssh -i %s -NR %s:localhost:%s %s@%s" % (\
         key_file, public_port, local_port, username, address)
@@ -13,8 +14,14 @@ def setup_tunnel(address, username, key_file, local_port, public_port):
 
     print("Establishing connection to gateway...")
 
-    read_ouput_process = multiprocessing.Process(target=read_output, name="read_output", args=(tunnel_process,))
+    read_ouput_process = multiprocessing.Process(target=read_output, args=(tunnel_process,))
     read_ouput_process.start()
+
+    @atexit.register
+    def cleanup():
+        tunnel_process.kill()
+        read_ouput_process.terminate()
+        print("Terminated connection to gateway.")
 
     established = False
     start_time = time.time()
@@ -23,11 +30,6 @@ def setup_tunnel(address, username, key_file, local_port, public_port):
             print("Done. Available at http://%s:%s" % (address, public_port))
             established = True
 
-    @atexit.register
-    def cleanup():
-        tunnel_process.kill()
-        read_ouput_process.terminate()
-
 
 def read_output(process):
     output = process.stderr.readline()
@@ -35,9 +37,16 @@ def read_output(process):
     sys.exit(0)
 
 
-if __name__ == "__main__":
+def main():
     setup_tunnel(
         config["gateway_address"],
         config["username"],
         config["key_file"],
-        3000, 50000)
+        3000, 50001)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass
