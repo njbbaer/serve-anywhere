@@ -4,20 +4,14 @@ import atexit
 import time
 import sys
 
+from config import config
 
-ADDRESS = '184.72.16.74'
-USERNAME = 'serve-anywhere'
-KEY_FILE = 'auth_key'
-LOCAL_PORT = 3000
-PUBLIC_PORT = 50000
-
-
-def setup_tunnel():
-    ssh_command = 'ssh -i %s -NR %s:localhost:%s %s@%s' % (\
-        KEY_FILE, PUBLIC_PORT, LOCAL_PORT, USERNAME, ADDRESS)
+def setup_tunnel(address, username, key_file, local_port, public_port):
+    ssh_command = "ssh -i %s -NR %s:localhost:%s %s@%s" % (\
+        key_file, public_port, local_port, username, address)
     tunnel_process = subprocess.Popen(ssh_command, stderr=subprocess.PIPE, shell=True)
 
-    print('Establishing connection to gateway...')
+    print("Establishing connection to gateway...")
 
     read_ouput_process = multiprocessing.Process(target=read_output, name="read_output", args=(tunnel_process,))
     read_ouput_process.start()
@@ -25,8 +19,8 @@ def setup_tunnel():
     established = False
     start_time = time.time()
     while read_ouput_process.is_alive():
-        if time.time() > start_time + 5 and not established:
-            print("Done. Available at http://%s:%s" % (ADDRESS, PUBLIC_PORT))
+        if time.time() > start_time + 3 and not established:
+            print("Done. Available at http://%s:%s" % (address, public_port))
             established = True
 
     @atexit.register
@@ -41,5 +35,9 @@ def read_output(process):
     sys.exit(0)
 
 
-if __name__ == '__main__':
-    setup_tunnel()
+if __name__ == "__main__":
+    setup_tunnel(
+        config["gateway_address"],
+        config["username"],
+        config["key_file"],
+        3000, 50000)
